@@ -33,15 +33,21 @@
 #define PLAYING_STATE          1
 #define PLAYEND_STATE          0
 
-#define IIC_ADDRESS_REGISTER   0x00
-#define BUTTON_REGISTER        0x01
-#define LIGHT_REGISTER         0x02
-#define VOICE_NUMBER_REGISTER  0x03
-#define RECORD_PLAY_REGISTER   0x04
-#define EMPTY_DELETE_REGISTER  0x05
-#define TIMEREMAIN_REGISTER    0x06
-#define RECORDING_REGISTER     0x07
-#define PLAYING_REGISTER       0x08
+#define CHINESE_MODE           1
+#define ENGLISH_MODE           2
+
+#define IIC_ADDRESS_REGISTER    0x00
+#define BUTTON_REGISTER         0x01
+#define LIGHT_REGISTER          0x02
+#define VOICE_NUMBER_REGISTER   0x03
+#define RECORD_PLAY_REGISTER    0x04
+#define EMPTY_DELETE_REGISTER   0x05
+#define TIMEREMAIN_REGISTER     0x06
+#define RECORDING_REGISTER      0x07
+#define PLAYING_REGISTER        0x08
+#define SYNTHESIS_FLAG          0x09
+#define SYNTHESIS_HIGH_REGISTER 0x0A
+#define SYNTHESIS_LOW_REGISTER  0x0B
 
 class DFRobot_VoiceRecorder{
 public:
@@ -54,12 +60,14 @@ public:
   void setRecordPlayState(uint8_t state);
   void setVoiceState(uint8_t state);
   
+  uint8_t VoiceSynthesis(uint8_t language,uint16_t number);
   uint8_t recordvoiceStart(void);
   uint8_t playVoiceStart(void);
   uint8_t deleteVoice(void);
   uint8_t recordVoiceEnd(void);
   uint8_t playVoiceEnd(void);
   
+  uint8_t getVoiceSynthesis(void);
   uint8_t getRecording(void);
   uint8_t getPlaying(void);
   uint8_t getIICAddress(void);

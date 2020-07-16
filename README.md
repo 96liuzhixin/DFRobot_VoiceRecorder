@@ -146,6 +146,16 @@ To use this library, first download the library file, paste it into the \Arduino
    */
   uint8_t playVoiceEnd(void);
 
+  /**
+   * @brief speech synthesis
+   * @param language is  CHINESE_MODE     0x01
+   *                     ENGLISH_MODE     0x02
+   * @param number range is (0-65535)
+   * @return 1 is speech synthesis success
+   *         2 is recording or playing. Please finish recording or playing first
+   *         3 is In speech synthesis
+   */
+  uint8_t VoiceSynthesis(uint8_t language,uint16_t number);
 ```
 ## Compatibility
 

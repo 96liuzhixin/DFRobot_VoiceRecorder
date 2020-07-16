@@ -39,68 +39,113 @@ void DFRobot_VoiceRecorder::setVoiceState(uint8_t state)
   writeData(EMPTY_DELETE_REGISTER ,sendBuf ,1);
 }
 
+
+uint8_t DFRobot_VoiceRecorder::VoiceSynthesis(uint8_t language, uint16_t number)
+{
+  if(getRecording() == RECORD_PLAY_START || getPlaying() == RECORD_PLAY_START) {
+    return 2;                               // The current number is recording or playing. Please finish recording or playing first
+  }else{
+    if(getVoiceSynthesis()) {               // In speech synthesis, please wait
+      return 3;
+    }else{
+      sendBuf[0] = language;
+      sendBuf[1] = number >> 8;
+      sendBuf[2] = number;
+      writeData(SYNTHESIS_FLAG ,sendBuf ,3);
+      return 1;
+    }
+  }
+}
+
 uint8_t DFRobot_VoiceRecorder::recordvoiceStart(void)
 {
-  if(getRecording() == RECORDING_STATE) {
-    return 2;                                // The current number is recording or playing. Please finish recording or playing first
+  if(getVoiceSynthesis()) {                    // In speech synthesis, please wait
+    return 3;
   }else{
-    if(getVoiceState() == EMPTY) {           // if number as is empty
-      setRecordPlayState(RECORD_PLAY_START);
-      return 1;
-    }else{                                   // The current numbered sound is not empty. 
-      return 0;
+    if(getRecording() == RECORDING_STATE) {
+      return 2;                                // The current number is recording or playing. Please finish recording or playing first
+    }else{
+      if(getVoiceState() == EMPTY) {           // if number as is empty
+        setRecordPlayState(RECORD_PLAY_START);
+        return 1;
+      }else{                                   // The current numbered sound is not empty. 
+        return 0;
+      }
     }
   }
 }
 
 uint8_t DFRobot_VoiceRecorder::playVoiceStart(void)
 {
-  if(getPlaying() == PLAYING_STATE) {
-    return 2;                               // The current number is recording or playing. Please finish recording or playing first
+  if(getVoiceSynthesis()) {                    // In speech synthesis, please wait
+    return 3;
   }else{
-    if(getVoiceState() == EMPTY) {
-      return 0;                              // There are no songs in the current number
+    if(getPlaying() == PLAYING_STATE) {
+      return 2;                               // The current number is recording or playing. Please finish recording or playing first
     }else{
-      setRecordPlayState(RECORD_PLAY_START);
-      return 1;
+      if(getVoiceState() == EMPTY) {
+        return 0;                              // There are no songs in the current number
+      }else{
+        setRecordPlayState(RECORD_PLAY_START);
+        return 1;
+      }
     }
   }
 }
 
 uint8_t DFRobot_VoiceRecorder::deleteVoice(void)
 {
-  if(getRecording() == RECORD_PLAY_START || getPlaying() == RECORD_PLAY_START) {
-    return 2;                               // The current number is recording or playing. Please finish recording or playing first
+  if(getVoiceSynthesis()) {                    // In speech synthesis, please wait
+    return 3;
   }else{
-    if(getVoiceState() == EMPTY) {           // if number as is empty
-      return 0;                              // You don't need to delete
+    if(getRecording() == RECORD_PLAY_START || getPlaying() == RECORD_PLAY_START) {
+      return 2;                               // The current number is recording or playing. Please finish recording or playing first
     }else{
-      setVoiceState(DELETE_VOICE);
-      while(getVoiceState() == EMPTY)        // Waiting for deletion to complete
-        delay(10);
-      return 1;
+      if(getVoiceState() == EMPTY) {           // if number as is empty
+        return 0;                              // You don't need to delete
+      }else{
+        setVoiceState(DELETE_VOICE);
+        while(getVoiceState() == EMPTY)        // Waiting for deletion to complete
+          delay(10);
+        return 1;
+      }
     }
   }
 }
 
 uint8_t DFRobot_VoiceRecorder::recordVoiceEnd(void)
 {
-  if(getRecording() == RECORD_PLAY_END) {
-    return 0;                                // No beginning
+  if(getVoiceSynthesis()) {                    // In speech synthesis, please wait
+    return 3;
   }else{
-    setRecordPlayState(RECORD_PLAY_END);
-    return 1;
+    if(getRecording() == RECORD_PLAY_END) {
+      return 0;                                // No beginning
+    }else{
+      setRecordPlayState(RECORD_PLAY_END);
+      return 1;
+    }
   }
 }
 
 uint8_t DFRobot_VoiceRecorder::playVoiceEnd(void)
 {
-  if(getPlaying() == RECORD_PLAY_END) {
-    return 0;                                // No beginning no end
+  if(getVoiceSynthesis()) {                    // In speech synthesis, please wait
+    return 3;
   }else{
-    setRecordPlayState(RECORD_PLAY_END);
-    return 1;
+    if(getPlaying() == RECORD_PLAY_END) {
+      return 0;                                // No beginning no end
+    }else{
+      setRecordPlayState(RECORD_PLAY_END);
+      return 1;
+    }
   }
+}
+
+
+uint8_t DFRobot_VoiceRecorder::getVoiceSynthesis(void)
+{
+  readData(SYNTHESIS_FLAG ,recvBuf ,1);
+  return recvBuf[0];
 }
 
 uint8_t DFRobot_VoiceRecorder::getIICAddress(void)
