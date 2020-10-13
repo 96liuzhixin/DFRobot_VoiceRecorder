@@ -4,15 +4,15 @@
  * @copyright   Copyright (c) 2010 DFRobot Co.Ltd (http://www.dfrobot.com)
  * @licence     The MIT License (MIT)
  * @author      [ZhixinLiu](zhixin.liu@dfrobot.com)
- * @version  V0.1
- * @date  2020-7-1
+ * @version  V1.0
+ * @date  2020-10-13
  * @get from https://www.dfrobot.com
- * @url https://github.com/DFRobot/DFRobot_VoiceRecorder.git
+ * @url https://github.com/DFRobot/DFRobot_VoiceRecorder
  */
 #include "DFRobot_VoiceRecorder.h"
 
-#define I2C_ADDRESS  0x30                                             // default IIC device address is 0x30
-DFRobot_VoiceRecorder_IIC voicerecorder(&Wire, I2C_ADDRESS);      // i2c configuration parameters
+#define I2C_ADDRESS  0x30                                             // default I2C device address is 0x30
+DFRobot_VoiceRecorder_I2C voicerecorder(&Wire, I2C_ADDRESS);          // i2c configuration parameters
 int speechSynthesis   = 4;
 
 void setup()
@@ -20,56 +20,65 @@ void setup()
   Serial.begin(115200);
   pinMode(speechSynthesis , INPUT);
   while(voicerecorder.begin() != 0) {
-    Serial.println("I2c device number error");
+    Serial.println("i2c device number error!");
     delay(1000);
-  }
+  } Serial.println("i2c connect success!");
 
 /*
   Set button mode on or off
-    BUTTON_MODE_ON   0x00
-    BUTTON_MODE_OFF  0x01
+    BUTTON_MODE_ON
+    BUTTON_MODE_OFF
 */
   voicerecorder.setButtonMode(BUTTON_MODE_ON);
 
 /*
   Set light mode on or off
-    LIGHT_MODE_ON    0x01
-    LIGHT_MODE_OFF   0x00
+    LIGHT_MODE_ON
+    LIGHT_MODE_OFF
 */
   voicerecorder.setLightMode(LIGHT_MODE_ON);
 
 /*
   Set the audio number
-    VOICE_NUMBER_0    0x00
-    VOICE_NUMBER_1    0x01
-    VOICE_NUMBER_2    0x02
-    VOICE_NUMBER_3    0x03
-    VOICE_NUMBER_4    0x04
-    VOICE_NUMBER_5    0x05
-    VOICE_NUMBER_6    0x06
-    VOICE_NUMBER_7    0x07
-    VOICE_NUMBER_8    0x08
-    VOICE_NUMBER_9    0x09
+    VOICE_NUMBER_0
+    VOICE_NUMBER_1
+    VOICE_NUMBER_2
+    VOICE_NUMBER_3
+    VOICE_NUMBER_4
+    VOICE_NUMBER_5
+    VOICE_NUMBER_6
+    VOICE_NUMBER_7
+    VOICE_NUMBER_8
+    VOICE_NUMBER_9
 */
   voicerecorder.setVoiceNumber(VOICE_NUMBER_0);
 }
 
 void loop()
 {
-  volatile uint8_t state   = 0;
-  if(digitalRead(speechSynthesis)) {
+  uint8_t state   = 0;
+  if(digitalRead(speechSynthesis))
+  {
   /*
-    Set voice mode number (0-65535)
-      CHINESE_MODE    0x01
-      ENGLISH_MODE    0x02
+    Set voice mode number (999999999  to  -999999999)
+      CHINESE_LANGUAGE
+      ENGLISH_LANGUAGE
   */
-    state = voicerecorder.VoiceSynthesis(CHINESE_MODE,65534);        // start synthesis
-    if(state == 1){
+    state = voicerecorder.VoiceSynthesis(CHINESE_LANGUAGE ,-123456789);                 // start synthesis
+  /*
+    mode synthesis or replace
+      VOICE_SYNTHESIS_MODE         range (999999999.999999999  to  -999999999.999999999)
+      VOICE_REPLACE_MODE           Nine-bit string
+  */
+    //state = voicerecorder.VoiceSynthesis(CHINESE_LANGUAGE ,"-123456789.987654321" ,VOICE_SYNTHESIS_MODE);
+    if(state == VOICE_SUCCESS){
       Serial.println("start synthesis!");
-    }else if(state == 3){
+    }else if(state == VOICE_SYNTHESISING){
       Serial.println("In speech synthesis, please wait!");
-    }else{
+    }else if(state == VOICE_BUSY){
       Serial.println("It has been recorded or played, please finish recording or playing first!");
+    }else{
+      Serial.println("Mode error!");
     }
     delay(300);
   }

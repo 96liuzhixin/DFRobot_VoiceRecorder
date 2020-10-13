@@ -1,5 +1,5 @@
 # DFRobot_VoiceRecorder
-The recording module can record 10 sounds, 100 seconds each, which can be controlled by IIC and manually.
+The recording module can record 10 sounds, 100 seconds each, which can be controlled by I2C and manually.
 
 ## DFRobot_VoiceRecorder
 ---------------------------------------------------------
@@ -21,7 +21,7 @@ DFRobot_VoiceRecorder
 
 ## Summary
 
-You can set button mode, light mode, manual control number and IIC control, to achieve the recording function
+You can set button mode, light mode, manual control number and I2C control, to achieve the recording function
 
 ## Installation
 
@@ -33,7 +33,7 @@ To use this library, first download the library file, paste it into the \Arduino
 
   /**
    * @brief initialization parameters for i2c
-   * @return 0 or 1, 0 is iic begin success, 1 is iic begin error
+   * @return 0 or 1, 0 is i2c begin success, 1 is i2c begin error
    */
   uint8_t begin();
 
@@ -67,10 +67,10 @@ To use this library, first download the library file, paste it into the \Arduino
   void setVoiceNumber(uint8_t number);
 
   /**
-   * @brief get iic device address
-   * @return iic device address
+   * @brief get i2c device address
+   * @return i2c device address
    */
-  uint8_t getIICAddress();
+  uint8_t getI2CAddress();
 
   /**
    * @brief get Button Mode
@@ -118,44 +118,60 @@ To use this library, first download the library file, paste it into the \Arduino
 
   /**
    * @brief start record
-   * @return 1 is start record ,2 is repeat recording or playback,0 is Audio already exists, delete and record
+   * @return VOICE_SUCCESS is start record ,VOICE_BUSY is repeat recording or playback,VOICE_NONE is Audio already exists, delete and record
    */
   uint8_t recordvoiceStart(void);
 
   /**
    * @brief start play
-   * @return 1 is start play ,2 is repeat recording or playback,0 is no songs in the current number
+   * @return VOICE_SUCCESS is start play ,VOICE_BUSY is repeat recording or playback,VOICE_NONE is no songs in the current number
    */
   uint8_t playVoiceStart(void);
 
   /**
    * @brief delete voice
-   * @return 1 is delete success ,2 is repeat recording or playback,0 is no songs in the current number
+   * @return VOICE_SUCCESS is delete success ,VOICE_BUSY is repeat recording or playback,VOICE_NONE is no songs in the current number
    */
   uint8_t deleteVoice(void);
 
   /**
    * @brief End of the tape
-   * @return 1 is end success ,0 is no begin record
+   * @return VOICE_SUCCESS is end success ,VOICE_NONE is no begin record
    */
   uint8_t recordVoiceEnd(void);
 
   /**
    * @brief End play
-   * @return 1 is end success ,0 is no begin record
+   * @return VOICE_SUCCESS is end success ,VOICE_NONE is no begin record
    */
   uint8_t playVoiceEnd(void);
 
   /**
    * @brief speech synthesis
-   * @param language is  CHINESE_MODE     0x01
-   *                     ENGLISH_MODE     0x02
-   * @param number range is (0-65535)
-   * @return 1 is speech synthesis success
-   *         2 is recording or playing. Please finish recording or playing first
-   *         3 is In speech synthesis
+   * @param language is  CHINESE_LANGUAGE     0x01
+   *                     ENGLISH_LANGUAGE     0x02
+   * @param number range is (999999999 to -999999999)
+   * @return VOICE_SUCCESS        is speech synthesis success
+   *         VOICE_BUSY           is recording or playing. Please finish recording or playing first
+   *         VOICE_SYNTHESISING   is In speech synthesis
+   *         MODE_ERROR           is mode error
    */
-  uint8_t VoiceSynthesis(uint8_t language,uint16_t number);
+  uint8_t VoiceSynthesis(uint8_t language,int32_t number);
+  
+  
+  /**
+   * @brief speech synthesis
+   * @param language is  CHINESE_LANGUAGE     0x01
+   *                     ENGLISH_LANGUAGE     0x02
+   * @param string   is  Input string the scope is determined by the pattern
+   * @param mode     is  VOICE_SYNTHESIS_MODE         range (999999999.999999999  to  -999999999.999999999)
+   *                     VOICE_REPLACE_MODE           Nine-bit string
+   * @return VOICE_SUCCESS        is speech synthesis success
+   *         VOICE_BUSY           is recording or playing. Please finish recording or playing first
+   *         VOICE_SYNTHESISING   is In speech synthesis
+   *         MODE_ERROR           is mode error
+   */
+  uint8_t VoiceSynthesis(uint8_t language,int32_t number);
 ```
 ## Compatibility
 

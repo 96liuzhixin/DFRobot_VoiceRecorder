@@ -39,20 +39,156 @@ void DFRobot_VoiceRecorder::setVoiceState(uint8_t state)
   writeData(EMPTY_DELETE_REGISTER ,sendBuf ,1);
 }
 
-
-uint8_t DFRobot_VoiceRecorder::VoiceSynthesis(uint8_t language, uint16_t number)
+uint8_t DFRobot_VoiceRecorder::VoiceSynthesis(uint8_t language ,const char * string ,uint8_t mode)
 {
+  if(VOICE_SYNTHESIS_MODE == mode){
+    return synthesisMode(language ,string);
+  }else if(VOICE_REPLACE_MODE == mode){
+    return replaceMode(language ,string);
+  }else{
+    return MODE_ERROR;
+  }
+}
+
+
+uint8_t DFRobot_VoiceRecorder::synthesisMode(uint8_t language ,const char *string)
+{
+  char *   pointString  = NULL;
+  char *   testString   = NULL;
+  long int doubleNumner = 0;
+  uint8_t  pointlen     = 0;
+  uint8_t  pointData[MAX_POINT_LENGTH] = {NONE};
+  long int integer      = strtol((const char *)string ,&testString ,DECIMAL);
+  if(language == CHINESE_LANGUAGE){
+    pointString = strstr(string ,".");
+    if(NULL == pointString){
+      if(string[0] == '-'){ language = MINUS_CHINESE_INTEGER; integer *= -1; }
+      else {                language = CHINESE_INTEGER;       }
+    }else{
+      if(string[0] == '-'){ language = MINUS_CHINESE_DOUBLE;  integer *= -1; }
+      else {                language = CHINESE_DOUBLE;       }
+      pointlen = strlen(pointString) - 1;
+      if(pointlen > MAX_POINT_LENGTH) pointlen = MAX_POINT_LENGTH;
+      for(uint8_t i = 0; i < pointlen; i++)
+        pointData[i] = (uint8_t)pointString[i+1] - STRING_CHANGE_NUMBER;
+    }
+  }else if(language == ENGLISH_LANGUAGE){
+    pointString = strstr(string ,".");
+    if(NULL == pointString){
+      if(string[0] == '-'){ language = MINUS_ENGLISH_INTEGER; integer *= -1; }
+      else {                language = ENGLISH_INTEGER;       }
+    }else{
+      if(string[0] == '-'){ language = MINUS_ENGLISH_DOUBLE;  integer *= -1; }
+      else {                language = ENGLISH_DOUBLE;        }
+      pointlen = strlen(pointString) - 1;
+      if(pointlen > MAX_POINT_LENGTH) pointlen = MAX_POINT_LENGTH;
+      for(uint8_t i = 0; i < pointlen; i++)
+        pointData[i] = (uint8_t)pointString[i+1] - STRING_CHANGE_NUMBER;
+    }
+  }else{
+    language = NONE;
+    return MODE_ERROR;
+  }
+
+  memset(sendBuf ,NONE ,I2C_BUFF_LEN);
   if(getRecording() == RECORD_PLAY_START || getPlaying() == RECORD_PLAY_START) {
-    return 2;                               // The current number is recording or playing. Please finish recording or playing first
+    return VOICE_BUSY;                      // The current number is recording or playing. Please finish recording or playing first
   }else{
     if(getVoiceSynthesis()) {               // In speech synthesis, please wait
-      return 3;
+      return VOICE_SYNTHESISING;
+    }else{
+      switch(language)
+      {
+        case CHINESE_INTEGER:
+        case ENGLISH_INTEGER:
+        case MINUS_CHINESE_INTEGER:
+        case MINUS_ENGLISH_INTEGER:
+          sendBuf[0] = language;
+          sendBuf[1] = integer >> 24;
+          sendBuf[2] = integer >> 16;
+          sendBuf[3] = integer >> 8;
+          sendBuf[4] = integer;
+          writeData(SYNTHESIS_FLAG ,sendBuf ,MAX_INTEGER + 1);
+          break;
+        case CHINESE_DOUBLE:
+        case ENGLISH_DOUBLE:
+        case MINUS_CHINESE_DOUBLE:
+        case MINUS_ENGLISH_DOUBLE:
+          sendBuf[0]  = language;
+          sendBuf[1]  = integer >> 24;
+          sendBuf[2]  = integer >> 16;
+          sendBuf[3]  = integer >> 8;
+          sendBuf[4]  = integer;
+          memcpy(&sendBuf[MAX_INTEGER + 1] ,pointData ,MAX_POINT_LENGTH);
+          writeData(SYNTHESIS_FLAG ,sendBuf ,MAX_INTEGER + MAX_POINT_LENGTH + 1);
+          break;
+        default:
+          break;
+      }
+      return VOICE_SUCCESS;
+    }
+  }
+}
+
+
+uint8_t DFRobot_VoiceRecorder::replaceMode(uint8_t language ,const char *string)
+{
+  uint8_t replaceLen = 0;
+  uint8_t replaceData[MAX_REPLACE_LENGTH] = {NONE};
+  if(language == CHINESE_LANGUAGE){
+    language = CHINESE_REPLACE;
+  }else if(language == ENGLISH_LANGUAGE){
+    language = ENGLISH_REPLACE;
+  }else{
+    language = NONE;
+    return MODE_ERROR;
+  }
+  replaceLen = strlen(string);
+  if(replaceLen > MAX_REPLACE_LENGTH) replaceLen = MAX_REPLACE_LENGTH;
+  for(uint8_t i = 0; i < replaceLen; i++)
+    replaceData[i] = (uint8_t)string[i] - STRING_CHANGE_NUMBER;
+  
+  memset(sendBuf ,NONE ,I2C_BUFF_LEN);
+  if(getRecording() == RECORD_PLAY_START || getPlaying() == RECORD_PLAY_START) {
+    return VOICE_BUSY;                      // The current number is recording or playing. Please finish recording or playing first
+  }else{
+    if(getVoiceSynthesis()) {               // In speech synthesis, please wait
+      return VOICE_SYNTHESISING;
+    }else{
+      sendBuf[0]  = language;
+      memcpy(&sendBuf[MAX_INTEGER + 1] ,replaceData ,MAX_REPLACE_LENGTH);
+      writeData(SYNTHESIS_FLAG ,sendBuf ,MAX_INTEGER + MAX_REPLACE_LENGTH + 1);
+      return VOICE_SUCCESS;
+    }
+  }
+}
+
+
+uint8_t DFRobot_VoiceRecorder::VoiceSynthesis(uint8_t language, int32_t number)
+{
+  if(language == CHINESE_LANGUAGE){
+    if(number > 0){   language = CHINESE_INTEGER;}
+    else{number*=-1;  language = MINUS_CHINESE_INTEGER;}
+  }else if(language == ENGLISH_LANGUAGE){
+    if(number > 0){   language = ENGLISH_INTEGER;}
+    else{number*=-1;  language = MINUS_ENGLISH_INTEGER;}
+  }else{
+    language = NONE;
+  }
+  memset(sendBuf ,NONE ,I2C_BUFF_LEN); 
+  if(getRecording() == RECORD_PLAY_START || getPlaying() == RECORD_PLAY_START){
+    return VOICE_BUSY;                      // The current number is recording or playing. Please finish recording or playing first
+  }else{
+    if(getVoiceSynthesis()) {               // In speech synthesis, please wait
+      return VOICE_SYNTHESISING;
     }else{
       sendBuf[0] = language;
-      sendBuf[1] = number >> 8;
-      sendBuf[2] = number;
-      writeData(SYNTHESIS_FLAG ,sendBuf ,3);
-      return 1;
+      sendBuf[1] = number >> 24;
+      sendBuf[2] = number >> 16;
+      sendBuf[3] = number >> 8;
+      sendBuf[4] = number;
+      writeData(SYNTHESIS_FLAG ,sendBuf ,MAX_INTEGER + 1);
+      return VOICE_SUCCESS;
     }
   }
 }
@@ -60,16 +196,16 @@ uint8_t DFRobot_VoiceRecorder::VoiceSynthesis(uint8_t language, uint16_t number)
 uint8_t DFRobot_VoiceRecorder::recordvoiceStart(void)
 {
   if(getVoiceSynthesis()) {                    // In speech synthesis, please wait
-    return 3;
+    return VOICE_SYNTHESISING;
   }else{
     if(getRecording() == RECORDING_STATE) {
-      return 2;                                // The current number is recording or playing. Please finish recording or playing first
+      return VOICE_BUSY;                       // The current number is recording or playing. Please finish recording or playing first
     }else{
       if(getVoiceState() == EMPTY) {           // if number as is empty
         setRecordPlayState(RECORD_PLAY_START);
-        return 1;
+        return VOICE_SUCCESS;
       }else{                                   // The current numbered sound is not empty. 
-        return 0;
+        return VOICE_HAVED_AUDIO;
       }
     }
   }
@@ -78,16 +214,16 @@ uint8_t DFRobot_VoiceRecorder::recordvoiceStart(void)
 uint8_t DFRobot_VoiceRecorder::playVoiceStart(void)
 {
   if(getVoiceSynthesis()) {                    // In speech synthesis, please wait
-    return 3;
+    return VOICE_SYNTHESISING;
   }else{
     if(getPlaying() == PLAYING_STATE) {
-      return 2;                               // The current number is recording or playing. Please finish recording or playing first
+      return VOICE_BUSY;                       // The current number is recording or playing. Please finish recording or playing first
     }else{
       if(getVoiceState() == EMPTY) {
-        return 0;                              // There are no songs in the current number
+        return VOICE_NONE;                     // There are no songs in the current number
       }else{
         setRecordPlayState(RECORD_PLAY_START);
-        return 1;
+        return VOICE_SUCCESS;
       }
     }
   }
@@ -96,18 +232,18 @@ uint8_t DFRobot_VoiceRecorder::playVoiceStart(void)
 uint8_t DFRobot_VoiceRecorder::deleteVoice(void)
 {
   if(getVoiceSynthesis()) {                    // In speech synthesis, please wait
-    return 3;
+    return VOICE_SYNTHESISING;
   }else{
     if(getRecording() == RECORD_PLAY_START || getPlaying() == RECORD_PLAY_START) {
-      return 2;                               // The current number is recording or playing. Please finish recording or playing first
+      return VOICE_BUSY;                       // The current number is recording or playing. Please finish recording or playing first
     }else{
       if(getVoiceState() == EMPTY) {           // if number as is empty
-        return 0;                              // You don't need to delete
+        return VOICE_NONE;                     // You don't need to delete
       }else{
         setVoiceState(DELETE_VOICE);
-        while(getVoiceState() == EMPTY)        // Waiting for deletion to complete
+        while(getVoiceState() != EMPTY)       // Waiting for deletion to complete
           delay(10);
-        return 1;
+        return VOICE_SUCCESS;
       }
     }
   }
@@ -116,13 +252,13 @@ uint8_t DFRobot_VoiceRecorder::deleteVoice(void)
 uint8_t DFRobot_VoiceRecorder::recordVoiceEnd(void)
 {
   if(getVoiceSynthesis()) {                    // In speech synthesis, please wait
-    return 3;
+    return VOICE_SYNTHESISING;
   }else{
     if(getRecording() == RECORD_PLAY_END) {
-      return 0;                                // No beginning
+      return VOICE_NONE;                       // No beginning
     }else{
       setRecordPlayState(RECORD_PLAY_END);
-      return 1;
+      return VOICE_SUCCESS;
     }
   }
 }
@@ -130,13 +266,13 @@ uint8_t DFRobot_VoiceRecorder::recordVoiceEnd(void)
 uint8_t DFRobot_VoiceRecorder::playVoiceEnd(void)
 {
   if(getVoiceSynthesis()) {                    // In speech synthesis, please wait
-    return 3;
+    return VOICE_SYNTHESISING;
   }else{
     if(getPlaying() == RECORD_PLAY_END) {
-      return 0;                                // No beginning no end
+      return VOICE_NONE;                       // No beginning no end
     }else{
       setRecordPlayState(RECORD_PLAY_END);
-      return 1;
+      return VOICE_SUCCESS;
     }
   }
 }
@@ -148,9 +284,9 @@ uint8_t DFRobot_VoiceRecorder::getVoiceSynthesis(void)
   return recvBuf[0];
 }
 
-uint8_t DFRobot_VoiceRecorder::getIICAddress(void)
+uint8_t DFRobot_VoiceRecorder::getI2CAddress(void)
 {
-  readData(IIC_ADDRESS_REGISTER ,recvBuf ,1);
+  readData(I2C_ADDRESS_REGISTER ,recvBuf ,1);
   return recvBuf[0];
 }
 
@@ -200,37 +336,37 @@ uint8_t DFRobot_VoiceRecorder::getPlaying(void)
   return recvBuf[0];
 }
 
-DFRobot_VoiceRecorder_IIC::DFRobot_VoiceRecorder_IIC(TwoWire *pWire, uint8_t addr)
+DFRobot_VoiceRecorder_I2C::DFRobot_VoiceRecorder_I2C(TwoWire *pWire, uint8_t addr)
 {
   _pWire = pWire;
-  this->_IIC_addr = addr;
+  this->_I2C_addr = addr;
 }
 
-uint8_t DFRobot_VoiceRecorder_IIC::begin(void)
+uint8_t DFRobot_VoiceRecorder_I2C::begin(void)
 {
   _pWire->begin();
-  _pWire->beginTransmission(_IIC_addr);
+  _pWire->beginTransmission(_I2C_addr);
   if(_pWire->endTransmission() == 0)
     return 0;
   return 1;
 }
 
-void DFRobot_VoiceRecorder_IIC::writeData(uint8_t Reg ,uint8_t *Data ,uint8_t len)
+void DFRobot_VoiceRecorder_I2C::writeData(uint8_t Reg ,uint8_t *Data ,uint8_t len)
 {
-  _pWire->beginTransmission(this->_IIC_addr);
+  _pWire->beginTransmission(this->_I2C_addr);
   _pWire->write(Reg);
   for(uint8_t i = 0; i < len; i++)
     _pWire->write(Data[i]);
   _pWire->endTransmission();
 }
 
-uint8_t DFRobot_VoiceRecorder_IIC::readData(uint8_t Reg,uint8_t *Data,uint8_t len)
+uint8_t DFRobot_VoiceRecorder_I2C::readData(uint8_t Reg,uint8_t *Data,uint8_t len)
 {
   int i=0;
-  _pWire->beginTransmission(this->_IIC_addr);
+  _pWire->beginTransmission(this->_I2C_addr);
   _pWire->write(Reg);
   _pWire->endTransmission();
-  _pWire->requestFrom((uint8_t)this->_IIC_addr,(uint8_t)len);
+  _pWire->requestFrom((uint8_t)this->_I2C_addr,(uint8_t)len);
   while (_pWire->available()){
     Data[i++]=_pWire->read();
   }

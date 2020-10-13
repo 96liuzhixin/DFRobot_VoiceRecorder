@@ -33,10 +33,21 @@
 #define PLAYING_STATE          1
 #define PLAYEND_STATE          0
 
-#define CHINESE_MODE           1
-#define ENGLISH_MODE           2
+#define CHINESE_LANGUAGE       (uint8_t)1
+#define ENGLISH_LANGUAGE       (uint8_t)2
 
-#define IIC_ADDRESS_REGISTER    0x00
+#define CHINESE_INTEGER         0x01
+#define ENGLISH_INTEGER         0x02
+#define CHINESE_DOUBLE          0x03
+#define ENGLISH_DOUBLE          0x04
+#define MINUS_CHINESE_INTEGER   0x05
+#define MINUS_ENGLISH_INTEGER   0x06
+#define MINUS_CHINESE_DOUBLE    0x07
+#define MINUS_ENGLISH_DOUBLE    0x08
+#define CHINESE_REPLACE         0x09
+#define ENGLISH_REPLACE         0x0A
+
+#define I2C_ADDRESS_REGISTER    0x00
 #define BUTTON_REGISTER         0x01
 #define LIGHT_REGISTER          0x02
 #define VOICE_NUMBER_REGISTER   0x03
@@ -49,6 +60,28 @@
 #define SYNTHESIS_HIGH_REGISTER 0x0A
 #define SYNTHESIS_LOW_REGISTER  0x0B
 
+
+#define STRING_CHANGE_NUMBER    0x30
+#define MAX_POINT_LENGTH        0x09
+#define MAX_REPLACE_LENGTH      0x09
+#define MAX_INTEGER             0x04
+#define DECIMAL                 0x0A
+#define NONE                    0x00
+#define I2C_BUFF_LEN            0x14
+
+#define VOICE_SUCCESS           0x01
+#define VOICE_NONE              0x00
+#define VOICE_SYNTHESISING      0x03
+#define VOICE_HAVED_AUDIO       0x00
+#define VOICE_BUSY              0x02
+#define MODE_ERROR              0x05
+
+
+
+#define VOICE_SYNTHESIS_MODE    0x01
+#define VOICE_REPLACE_MODE      0x02
+
+
 class DFRobot_VoiceRecorder{
 public:
   DFRobot_VoiceRecorder(){};
@@ -60,7 +93,10 @@ public:
   void setRecordPlayState(uint8_t state);
   void setVoiceState(uint8_t state);
   
-  uint8_t VoiceSynthesis(uint8_t language,uint16_t number);
+  uint8_t VoiceSynthesis(uint8_t language ,int32_t number);
+  uint8_t VoiceSynthesis(uint8_t language ,const char *string ,uint8_t mode);
+  uint8_t synthesisMode(uint8_t language ,const char *string);
+  uint8_t replaceMode(uint8_t language ,const char *string);
   uint8_t recordvoiceStart(void);
   uint8_t playVoiceStart(void);
   uint8_t deleteVoice(void);
@@ -70,29 +106,29 @@ public:
   uint8_t getVoiceSynthesis(void);
   uint8_t getRecording(void);
   uint8_t getPlaying(void);
-  uint8_t getIICAddress(void);
+  uint8_t getI2CAddress(void);
   uint8_t getButtonMode(void);
   uint8_t getLightMode(void);
   uint8_t getRecordPlayState(void);
   uint8_t getVoiceNumber(void);
   uint8_t getVoiceState(void);
   uint8_t getTimeRemaining(void);
-  uint8_t sendBuf[10] = {0};
-  uint8_t recvBuf[10] = {0};
+  uint8_t sendBuf[I2C_BUFF_LEN] = {NONE};
+  uint8_t recvBuf[I2C_BUFF_LEN] = {NONE};
 protected:
-  virtual uint8_t readData(uint8_t Reg,uint8_t *Data,uint8_t len)=0;
-  virtual void writeData(uint8_t Reg,uint8_t *Data ,uint8_t len)=0;
+  virtual uint8_t readData (uint8_t Reg ,uint8_t *Data ,uint8_t len)=0;
+  virtual void    writeData(uint8_t Reg ,uint8_t *Data ,uint8_t len)=0;
 };
 
-class DFRobot_VoiceRecorder_IIC:public DFRobot_VoiceRecorder{
+class DFRobot_VoiceRecorder_I2C:public DFRobot_VoiceRecorder{
 public:
-  DFRobot_VoiceRecorder_IIC(TwoWire *pWire=&Wire ,uint8_t addr=0x30);
-  ~DFRobot_VoiceRecorder_IIC(){};
+  DFRobot_VoiceRecorder_I2C(TwoWire *pWire=&Wire ,uint8_t addr=0x30);
+  ~DFRobot_VoiceRecorder_I2C(){};
   void writeData(uint8_t Reg,uint8_t *Data,uint8_t len);
   uint8_t readData(uint8_t Reg,uint8_t *Data,uint8_t len);
   uint8_t begin();
 private:
   TwoWire *_pWire;
-  uint8_t _IIC_addr;
+  uint8_t _I2C_addr;
 };
 #endif
