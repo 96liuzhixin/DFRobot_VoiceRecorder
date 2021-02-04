@@ -21,10 +21,16 @@ void DFRobot_VoiceRecorder::setLightMode(uint8_t mode)
   writeData(LIGHT_REGISTER ,sendBuf ,1);
 }
 
-void DFRobot_VoiceRecorder::setVoiceNumber(uint8_t number)
+uint8_t DFRobot_VoiceRecorder::setVoiceNumber(uint8_t number)
 {
-  sendBuf[0] = number;
-  writeData(VOICE_NUMBER_REGISTER ,sendBuf ,1);
+  uint8_t state = getNowState();
+  if(VOICE_NONE == state){
+    sendBuf[0] = number;
+    writeData(VOICE_NUMBER_REGISTER ,sendBuf ,1);
+    return state;
+  }else{
+    return state;
+  }
 }
 
 void DFRobot_VoiceRecorder::setRecordPlayState(uint8_t state)
@@ -39,7 +45,7 @@ void DFRobot_VoiceRecorder::setVoiceState(uint8_t state)
   writeData(EMPTY_DELETE_REGISTER ,sendBuf ,1);
 }
 
-uint8_t DFRobot_VoiceRecorder::VoiceSynthesis(uint8_t language ,const char * string ,uint8_t mode)
+uint8_t DFRobot_VoiceRecorder::VoiceSynthesis(uint8_t language ,String string ,uint8_t mode)
 {
   if(VOICE_SYNTHESIS_MODE == mode){
     return synthesisMode(language ,string);
@@ -49,36 +55,73 @@ uint8_t DFRobot_VoiceRecorder::VoiceSynthesis(uint8_t language ,const char * str
     return MODE_ERROR;
   }
 }
+uint8_t DFRobot_VoiceRecorder::getBit(int32_t number)
+{
+  int32_t temp  = number;
+  uint8_t count = 0;
+  while(temp != 0)
+  {
+    temp /= 10;
+    count++;
+  }
+  return count;
+}
 
-
-uint8_t DFRobot_VoiceRecorder::synthesisMode(uint8_t language ,const char *string)
+uint8_t DFRobot_VoiceRecorder::synthesisMode(uint8_t language ,String string)
 {
   char *   pointString  = NULL;
   char *   testString   = NULL;
-  long int doubleNumner = 0;
   uint8_t  pointlen     = 0;
+  uint8_t  pointCount   = 0;
   uint8_t  pointData[MAX_POINT_LENGTH] = {NONE};
-  long int integer      = strtol((const char *)string ,&testString ,DECIMAL);
+  uint8_t  len = strlen(string.c_str());
+  char     string1[100] = {0};
+  memcpy(string1 ,string.c_str() ,strlen(string.c_str()));
+  if(!((string1[0] >= 0x30 && string1[0] <= 0x39) || (string1[0] == '-')))
+  {
+    return DATA_ERROR;
+  }
+  for(uint8_t i = 1; i < len; i++)
+  {
+    if(!((string1[i] >= 0x30 && string1[i] <= 0x39) || (string1[i] == '.')))
+    {
+      return DATA_ERROR;
+    }
+    if(string[i] == '.')
+    {
+      pointCount++;
+    }
+    if(pointCount > 1)
+    {
+      return DATA_ERROR;
+    }
+  }
+  int32_t integer = strtol((const char *)string1 ,&testString ,DECIMAL);
+  if(getBit(integer) > 9)
+  {
+    return DATA_ERROR;
+  }
+  
   if(language == CHINESE_LANGUAGE){
-    pointString = strstr(string ,".");
+    pointString = strstr(string1 ,".");
     if(NULL == pointString){
-      if(string[0] == '-'){ language = MINUS_CHINESE_INTEGER; integer *= -1; }
-      else {                language = CHINESE_INTEGER;       }
+      if(string1[0] == '-'){ language = MINUS_CHINESE_INTEGER; integer *= -1; }
+      else {                 language = CHINESE_INTEGER;       }
     }else{
-      if(string[0] == '-'){ language = MINUS_CHINESE_DOUBLE;  integer *= -1; }
-      else {                language = CHINESE_DOUBLE;       }
+      if(string1[0] == '-'){ language = MINUS_CHINESE_DOUBLE;  integer *= -1; }
+      else {                 language = CHINESE_DOUBLE;       }
       pointlen = strlen(pointString) - 1;
       if(pointlen > MAX_POINT_LENGTH) pointlen = MAX_POINT_LENGTH;
       for(uint8_t i = 0; i < pointlen; i++)
         pointData[i] = (uint8_t)pointString[i+1] - STRING_CHANGE_NUMBER;
     }
   }else if(language == ENGLISH_LANGUAGE){
-    pointString = strstr(string ,".");
+    pointString = strstr(string1 ,".");
     if(NULL == pointString){
-      if(string[0] == '-'){ language = MINUS_ENGLISH_INTEGER; integer *= -1; }
+      if(string1[0] == '-'){ language = MINUS_ENGLISH_INTEGER; integer *= -1; }
       else {                language = ENGLISH_INTEGER;       }
     }else{
-      if(string[0] == '-'){ language = MINUS_ENGLISH_DOUBLE;  integer *= -1; }
+      if(string1[0] == '-'){ language = MINUS_ENGLISH_DOUBLE;  integer *= -1; }
       else {                language = ENGLISH_DOUBLE;        }
       pointlen = strlen(pointString) - 1;
       if(pointlen > MAX_POINT_LENGTH) pointlen = MAX_POINT_LENGTH;
@@ -91,11 +134,12 @@ uint8_t DFRobot_VoiceRecorder::synthesisMode(uint8_t language ,const char *strin
   }
 
   memset(sendBuf ,NONE ,I2C_BUFF_LEN);
-  if(getRecording() == RECORD_PLAY_START || getPlaying() == RECORD_PLAY_START) {
-    return VOICE_BUSY;                      // The current number is recording or playing. Please finish recording or playing first
+  
+  if(getVoiceSynthesis()) {               // In speech synthesis, please wait
+    return VOICE_SYNTHESISING;
   }else{
-    if(getVoiceSynthesis()) {               // In speech synthesis, please wait
-      return VOICE_SYNTHESISING;
+    if(getRecording() == RECORD_PLAY_START || getPlaying() == RECORD_PLAY_START) {
+      return VOICE_BUSY;                      // The current number is recording or playing. Please finish recording or playing first
     }else{
       switch(language)
       {
@@ -131,10 +175,24 @@ uint8_t DFRobot_VoiceRecorder::synthesisMode(uint8_t language ,const char *strin
 }
 
 
-uint8_t DFRobot_VoiceRecorder::replaceMode(uint8_t language ,const char *string)
+uint8_t DFRobot_VoiceRecorder::replaceMode(uint8_t language ,String string)
 {
   uint8_t replaceLen = 0;
   uint8_t replaceData[MAX_REPLACE_LENGTH] = {NONE};
+  uint8_t len = strlen(string.c_str());
+  uint8_t j   = 0;
+  char    string1[100] = {0};
+  memcpy(string1 ,string.c_str() ,strlen(string.c_str()));
+
+  for(uint8_t i = 0; i < len; i++)
+  {
+    if(string1[i] >= 0x30 && string1[i] <= 0x39)
+    {
+      string1[j++] = string1[i];
+    }
+  }
+  memset(&string1[j] ,0 ,len - j);
+  len = j;
   if(language == CHINESE_LANGUAGE){
     language = CHINESE_REPLACE;
   }else if(language == ENGLISH_LANGUAGE){
@@ -143,29 +201,32 @@ uint8_t DFRobot_VoiceRecorder::replaceMode(uint8_t language ,const char *string)
     language = NONE;
     return MODE_ERROR;
   }
-  replaceLen = strlen(string);
+  replaceLen = len;
   if(replaceLen > MAX_REPLACE_LENGTH) replaceLen = MAX_REPLACE_LENGTH;
   for(uint8_t i = 0; i < replaceLen; i++)
-    replaceData[i] = (uint8_t)string[i] - STRING_CHANGE_NUMBER;
-  
+    replaceData[i] = (uint8_t)string1[i] - STRING_CHANGE_NUMBER;
   memset(sendBuf ,NONE ,I2C_BUFF_LEN);
-  if(getRecording() == RECORD_PLAY_START || getPlaying() == RECORD_PLAY_START) {
-    return VOICE_BUSY;                      // The current number is recording or playing. Please finish recording or playing first
-  }else{
-    if(getVoiceSynthesis()) {               // In speech synthesis, please wait
+  if(getVoiceSynthesis()){
       return VOICE_SYNTHESISING;
+  }else{
+    if(getRecording() == RECORD_PLAY_START || getPlaying() == RECORD_PLAY_START) {
+      return VOICE_BUSY;                      // The current number is recording or playing. Please finish recording or playing first
     }else{
       sendBuf[0]  = language;
-      memcpy(&sendBuf[MAX_INTEGER + 1] ,replaceData ,MAX_REPLACE_LENGTH);
-      writeData(SYNTHESIS_FLAG ,sendBuf ,MAX_INTEGER + MAX_REPLACE_LENGTH + 1);
+      memcpy(&sendBuf[MAX_INTEGER + 1] ,replaceData ,replaceLen);
+      writeData(SYNTHESIS_FLAG ,sendBuf ,MAX_INTEGER + replaceLen + 1);
       return VOICE_SUCCESS;
     }
   }
 }
 
 
-uint8_t DFRobot_VoiceRecorder::VoiceSynthesis(uint8_t language, int32_t number)
+uint8_t DFRobot_VoiceRecorder::VoiceSynthesis(uint8_t language, int64_t number)
 {
+  if(number > 999999999 || number < -999999999)
+  {
+    return DATA_ERROR;
+  }
   if(language == CHINESE_LANGUAGE){
     if(number > 0){   language = CHINESE_INTEGER;}
     else{number*=-1;  language = MINUS_CHINESE_INTEGER;}
@@ -176,11 +237,11 @@ uint8_t DFRobot_VoiceRecorder::VoiceSynthesis(uint8_t language, int32_t number)
     language = NONE;
   }
   memset(sendBuf ,NONE ,I2C_BUFF_LEN); 
-  if(getRecording() == RECORD_PLAY_START || getPlaying() == RECORD_PLAY_START){
-    return VOICE_BUSY;                      // The current number is recording or playing. Please finish recording or playing first
+  if(getVoiceSynthesis()) {               // In speech synthesis, please wait
+    return VOICE_SYNTHESISING;
   }else{
-    if(getVoiceSynthesis()) {               // In speech synthesis, please wait
-      return VOICE_SYNTHESISING;
+    if(getRecording() == RECORD_PLAY_START || getPlaying() == RECORD_PLAY_START){
+      return VOICE_BUSY;                      // The current number is recording or playing. Please finish recording or playing first
     }else{
       sendBuf[0] = language;
       sendBuf[1] = number >> 24;
@@ -265,6 +326,7 @@ uint8_t DFRobot_VoiceRecorder::recordVoiceEnd(void)
 
 uint8_t DFRobot_VoiceRecorder::playVoiceEnd(void)
 {
+  delay(50);
   if(getVoiceSynthesis()) {                    // In speech synthesis, please wait
     return VOICE_SYNTHESISING;
   }else{
@@ -278,63 +340,85 @@ uint8_t DFRobot_VoiceRecorder::playVoiceEnd(void)
 }
 
 
-uint8_t DFRobot_VoiceRecorder::getVoiceSynthesis(void)
-{
-  readData(SYNTHESIS_FLAG ,recvBuf ,1);
-  return recvBuf[0];
-}
+
 
 uint8_t DFRobot_VoiceRecorder::getI2CAddress(void)
 {
+  delay(50);
   readData(I2C_ADDRESS_REGISTER ,recvBuf ,1);
   return recvBuf[0];
 }
 
-uint8_t DFRobot_VoiceRecorder::getButtonMode(void){
+uint8_t DFRobot_VoiceRecorder::getButtonMode(void)
+{
+  delay(50);
   readData(BUTTON_REGISTER ,recvBuf ,1);
   return recvBuf[0];
 }
 
 uint8_t DFRobot_VoiceRecorder::getLightMode(void)
 {
+  delay(50);
   readData(LIGHT_REGISTER ,recvBuf ,1);
   return recvBuf[0];
 }
 
 uint8_t DFRobot_VoiceRecorder::getVoiceNumber(void)
 {
+  delay(50);
   readData(VOICE_NUMBER_REGISTER ,recvBuf ,1);
   return recvBuf[0];
 }
 
-uint8_t DFRobot_VoiceRecorder::getRecordPlayState(void)
+uint8_t DFRobot_VoiceRecorder::getNowState(void)
 {
-  readData(RECORD_PLAY_REGISTER ,recvBuf ,1);
-  return recvBuf[0];
+  if(getVoiceSynthesis())
+    return VOICE_SYNTHESISING;
+
+  if(getRecording() == RECORD_PLAY_START)
+    return VOICE_RECORDING;
+
+  if(getPlaying() == RECORD_PLAY_START)
+    return VOICE_PLAYING;
+  
+  return VOICE_NONE;
 }
+
 uint8_t DFRobot_VoiceRecorder::getVoiceState(void)
 {
+  delay(50);
   readData(EMPTY_DELETE_REGISTER ,recvBuf ,1);
   return recvBuf[0];
 }
 
 uint8_t DFRobot_VoiceRecorder::getTimeRemaining(void)
 {
+  delay(50);
   readData(TIMEREMAIN_REGISTER ,recvBuf ,1);
   return recvBuf[0];
 }
 
 uint8_t DFRobot_VoiceRecorder::getRecording(void)
 {
+  delay(50);
   readData(RECORDING_REGISTER ,recvBuf ,1);
   return recvBuf[0];
 }
   
 uint8_t DFRobot_VoiceRecorder::getPlaying(void)
 {
+  delay(50);
   readData(PLAYING_REGISTER ,recvBuf ,1);
   return recvBuf[0];
 }
+
+uint8_t DFRobot_VoiceRecorder::getVoiceSynthesis(void)
+{
+  delay(50);
+  readData(SYNTHESIS_FLAG ,recvBuf ,1);
+  return recvBuf[0];
+}
+
 
 DFRobot_VoiceRecorder_I2C::DFRobot_VoiceRecorder_I2C(TwoWire *pWire, uint8_t addr)
 {

@@ -63,14 +63,29 @@ To use this library, first download the library file, paste it into the \Arduino
    * @param VOICE_NUMBER_7   0x07
    * @param VOICE_NUMBER_8   0x08
    * @param VOICE_NUMBER_9   0x09
+   * @return state
+   *    VOICE_SYNTHESISING   is speech synthesis state
+   *    VOICE_PLAYING        is playing state
+   *    VOICE_RECORDING      is recording state
+   *    VOICE_NONE           is idle condition set number success
    */
-  void setVoiceNumber(uint8_t number);
+  uint8_t setVoiceNumber(uint8_t number);
 
   /**
    * @brief get i2c device address
    * @return i2c device address
    */
   uint8_t getI2CAddress();
+
+  /**
+   * @brief get now state
+   * @return state
+   *    VOICE_SYNTHESISING   is speech synthesis state
+   *    VOICE_PLAYING        is playing state
+   *    VOICE_RECORDING      is recording state
+   *    VOICE_NONE           is idle condition
+   */
+  uint8_t getNowState(void);
 
   /**
    * @brief get Button Mode
@@ -114,7 +129,7 @@ To use this library, first download the library file, paste it into the \Arduino
    * @brief get time reamaining
    * @return The time range is 0-100
    */
-  uint8_t getTimeRemaining();
+  uint8_t getTimeRemaining(void);
 
   /**
    * @brief start record
@@ -154,9 +169,10 @@ To use this library, first download the library file, paste it into the \Arduino
    * @return VOICE_SUCCESS        is speech synthesis success
    *         VOICE_BUSY           is recording or playing. Please finish recording or playing first
    *         VOICE_SYNTHESISING   is In speech synthesis
+   *         DATA_ERROR           is data error
    *         MODE_ERROR           is mode error
    */
-  uint8_t VoiceSynthesis(uint8_t language,int32_t number);
+  uint8_t VoiceSynthesis(uint8_t language ,int64_t number);
   
   
   /**
@@ -169,9 +185,10 @@ To use this library, first download the library file, paste it into the \Arduino
    * @return VOICE_SUCCESS        is speech synthesis success
    *         VOICE_BUSY           is recording or playing. Please finish recording or playing first
    *         VOICE_SYNTHESISING   is In speech synthesis
+   *         DATA_ERROR           is data error
    *         MODE_ERROR           is mode error
    */
-  uint8_t VoiceSynthesis(uint8_t language,int32_t number);
+  uint8_t VoiceSynthesis(uint8_t language ,String string ,uint8_t mode);
 ```
 ## Compatibility
 
@@ -181,11 +198,15 @@ Arduino uno        |      √       |              |             |
 Mega2560           |      √       |              |             | 
 Lenardo            |      √       |              |             | 
 ESP32              |      √       |              |             | 
+ESP8266            |      √       |              |             | 
 
 ## History
 
--  May 21, 2020 - Version 1.0 released.
+-  May      21, 2020 - Version 0.1 released.
+-  October  13, 2020 - Version 0.2 released.
+-  November 6,  2020 - Version 0.3 released.
+-  November 13, 2020 - Version 0.4 released.
 
 ## Credits
 
-Written by kaixingPeng(kaixing.peng@dfrobot.com), 2020. (Welcome to our [website](https://www.dfrobot.com/))
+Written by ZhiXinLiu(ZhiXin.Liu@dfrobot.com), 2020. (Welcome to our [website](https://www.dfrobot.com/))

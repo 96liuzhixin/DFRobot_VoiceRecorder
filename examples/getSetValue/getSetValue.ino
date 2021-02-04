@@ -50,7 +50,9 @@ void setup()
     VOICE_NUMBER_8
     VOICE_NUMBER_9
 */
-  voicerecorder.setVoiceNumber(VOICE_NUMBER_0);
+  if(VOICE_NONE != voicerecorder.setVoiceNumber(VOICE_NUMBER_0)){
+    Serial.println("set number error, please wait!");
+  }
 }
 
 void loop()
@@ -73,6 +75,18 @@ void loop()
   Serial.print("excess time  = ");
   Serial.print(voicerecorder.getTimeRemaining());
   Serial.println("S");
-  Serial.println();
+
+  switch(voicerecorder.getNowState())
+  {
+    case VOICE_SYNTHESISING:
+      Serial.println("voice synthesising !");
+      break;
+    case VOICE_PLAYING:
+      Serial.println("voice palying !");
+      break;
+    case VOICE_RECORDING:
+      Serial.println("voice recording !");
+      break;
+  }
   delay(1000);
 }
